@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colonel Blotto Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        h1 { margin-bottom: 8px; }
+        p { margin-bottom: 75px; }
+        #battlefronts { display: flex; justify-content: center; gap: 20px; }
+        .battlefront {
+            width: 200px; height: 300px; background: #ccc; position: relative;
+            border: 1px solid #000; display: flex; flex-direction: column; justify-content: space-between;
+            overflow: hidden;
+        }
+        .troops { position: absolute; width: 100%; text-align: center; transition: none; }
+        .blue-troops { bottom: 5px; }
+        .red-troops { top: 5px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin: 2px; }
+        .blue-dot { background: blue; }
+        .red-dot { background: red; }
+        .victory { position: absolute; top: -40px; width: 100%; font-size: 14px; font-weight: bold; }
+        .blue-victory { color: blue; }
+        .red-victory { color: red; }
+        .troop-count { position: absolute; width: 100%; font-size: 16px; font-weight: bold; text-align: center; }
+        #unallocated { margin: 10px 0; font-size: 16px; }
+        #result { margin-top: 20px; font-size: 24px; font-weight: bold; }
+        .blue-result { color: blue; }
+        .red-result { color: red; }
+        input[type="number"] { width: 60px; }
+        button {
+            background: white; color: black; font-weight: bold; border: 2px solid black;
+            padding: 5px 10px; cursor: pointer; transition: background 0.1s;
+        }
+        button:active { background: #ddd; }
+        button:disabled {
+            background: #f0f0f0; border: 2px solid #ccc; color: #666; cursor: not-allowed;
+        }
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px; }
+        .global-controls {
+            display: grid; grid-template-columns: repeat(4, 50px); gap: 5px; margin-right: 20px;
+        }
+        #game-buttons {
+			margin-top: 20px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 20px;
+		}
+		.global-controls {
+			display: grid;
+			grid-template-columns: repeat(2, 50px); /* 2x2 grid */
+			grid-template-rows: repeat(2, 32px); /* Match height for consistency */
+			gap: 5px;
+			margin-right: 20px;
+		}
+		#split-buttons, #randomize-buttons {
+			display: flex;
+			flex-direction: column;
+			gap: 5px;
+		}
+		#evenSplitBtn, #randomSplitBtn, #randomize5Btn, #randomize15Btn {
+			width: 140px; /* Increased from 120px to fit "Randomize 15%" on one line */
+		}
+		#submitBtn {
+			height: 64px;
+			width: 80px;
+			margin-left: 10px;
+		}
+		#unallocated {
+			margin: 10px 0;
+			font-size: 20px; /* Increased from 16px */
+			font-weight: bold; /* Made bold */
+		}
+        #controls { margin-top: 20px; text-align: center; }
+        .slider-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0; }
+        #stats { margin-top: 40px; }
+        canvas {
+            max-width: 500px; /* Increased width for better visibility */
+            max-height: 400px; /* Increased height to avoid squashing */
+            width: 100% !important; /* Ensure responsiveness */
+            height: auto !important; /* Maintain aspect ratio */
+        }
+        #stats-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px; /* Add padding to give breathing room */
+        }
+        #stats-controls {
+            margin-top: 15px;
+            text-align: center;
+        }
+		.bf-btn {
+			width: 40px;
+			margin: 0 5px;
+		}
+		.bf-btn.active {
+			background: #ddd;
+			border-color: #000;
+		}
+		#showDiffDataBtn {
+			margin-top: 10px;
+			background: white;
+			color: black;
+			font-weight: bold;
+			border: 2px solid black;
+			padding: 5px 10px;
+			cursor: pointer;
+			transition: background 0.1s;
+		}
+		#showDiffDataBtn:hover {
+			background: #f0f0f0;
+		}
+		#showDiffDataBtn:active {
+			background: #ddd;
+		}
+
+		.popup {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.5);
+			z-index: 1000;
+		}
+
+		.popup-content {
+			background: white;
+			margin: 15% auto;
+			padding: 20px;
+			border: 1px solid #888;
+			width: 50%;
+			max-height: 70%;
+			overflow-y: auto;
+			position: relative;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+		}
+
+		.close {
+			color: #aaa;
+			float: right;
+			font-size: 28px;
+			font-weight: bold;
+			cursor: pointer;
+		}
+
+		.close:hover,
+		.close:focus {
+			color: black;
+			text-decoration: none;
+		}
+
+		#diffDataTable {
+			width: 100%;
+			border-collapse: collapse;
+			margin-top: 10px;
+		}
+
+		#diffDataTable th,
+		#diffDataTable td {
+			border: 1px solid #ddd;
+			padding: 8px;
+			text-align: center;
+		}
+
+		#diffDataTable th {
+			background: #f2f2f2;
+			font-weight: bold;
+		}
+
+		#diffDataTable tbody tr:nth-child(even) {
+			background: #f9f9f9;
+		}
+		.troop-buttons {
+			display: inline-flex;
+			gap: 5px;
+			margin-left: 10px;
+		}
+
+		.troop-btn {
+			background: white;
+			color: black;
+			font-weight: bold;
+			border: 2px solid black;
+			padding: 5px 10px;
+			cursor: pointer;
+			transition: background 0.1s;
+			min-width: 40px;
+		}
+
+		.troop-btn:hover {
+			background: #f0f0f0;
+		}
+
+		.troop-btn:active {
+			background: #ddd;
+		}
+
+		.troop-btn:disabled {
+			background: #f0f0f0;
+			border: 2px solid #ccc;
+			color: #666;
+			cursor: not-allowed;
+		}
+
+		#blueTroopsDisplay, #redTroopsDisplay {
+			font-weight: bold;
+			color: #333;
+			margin-right: 10px;
+		}
+    </style>
+</head>
+<body>
+    <h1>Colonel Blotto Game</h1>
+    <p>You are Team Blue. Allocate your troops and battle Team Red!</p>
+
+    <div id="battlefronts"></div>
+    <div id="unallocated"></div>
+    <div id="game-buttons">
+		<div class="global-controls">
+			<button id="plus1All" onclick="resetAndAdjustAll(1)">+1</button>
+			<button id="plus10All" onclick="resetAndAdjustAll(10)">+10</button>
+			<button id="minus1All" onclick="resetAndAdjustAll(-1)">-1</button>
+			<button id="minus10All" onclick="resetAndAdjustAll(-10)">-10</button>
+		</div>
+		<div id="split-buttons">
+			<button id="evenSplitBtn" onclick="resetAndEvenSplit()">Even Split</button>
+			<button id="randomSplitBtn" onclick="resetAndRandomSplit()">Random Split</button>
+		</div>
+		<div id="randomize-buttons">
+			<button id="randomize5Btn" onclick="resetAndRandomize(0.05)">Randomize 5%</button>
+			<button id="randomize15Btn" onclick="resetAndRandomize(0.2)">Randomize 20%</button>
+		</div>
+		<button id="submitBtn" onclick="playGame()">Submit</button>
+	</div>
+    <div id="result"></div>
+    <div id="controls">
+		<div class="slider-container">
+			<label>Blue Troops (50–200): <span id="blueTroopsDisplay">100</span></label>
+			<div class="troop-buttons">
+				<button class="troop-btn" data-team="blue" data-change="-5">-5</button>
+				<button class="troop-btn" data-team="blue" data-change="-1">-1</button>
+				<button class="troop-btn" data-team="blue" data-change="1">+1</button>
+				<button class="troop-btn" data-team="blue" data-change="5">+5</button>
+			</div>
+		</div>
+		<div class="slider-container">
+			<label>Red Troops (50–200): <span id="redTroopsDisplay">100</span></label>
+			<div class="troop-buttons">
+				<button class="troop-btn" data-team="red" data-change="-5">-5</button>
+				<button class="troop-btn" data-team="red" data-change="-1">-1</button>
+				<button class="troop-btn" data-team="red" data-change="1">+1</button>
+				<button class="troop-btn" data-team="red" data-change="5">+5</button>
+			</div>
+		</div>
+		<div class="slider-container" style="margin-top: 20px">
+			<label>Number of Battlefronts: </label>
+			<button id="bf3" onclick="setBattlefronts(3)" class="bf-btn">3</button>
+			<button id="bf5" onclick="setBattlefronts(5)" class="bf-btn active">5</button>
+			<button id="bf7" onclick="setBattlefronts(7)" class="bf-btn">7</button>
+		</div>
+		<br>
+		<button id="resetBtn" onclick="setupGame()">Start/Reset Game</button>
+	</div>
+    <div id="stats">
+		<h2>Game Statistics</h2>
+		<div id="stats-container">
+			<div>
+				<canvas id="troopDiffChart"></canvas>
+				<button id="showDiffDataBtn">Show Troop Difference Data</button>
+			</div>
+			<div>
+				<canvas id="spreadChart"></canvas>
+				<div id="stats-controls">
+					<label><input type="checkbox" id="zeroDiffToggle" onchange="updateStats()"> Only Zero Troop Difference</label>
+				</div>
+			</div>
+		</div>
+		<!-- Popup for troop difference data -->
+		<div id="diffDataPopup" class="popup">
+			<div class="popup-content">
+				<span id="closeDiffPopup" class="close">×</span>
+				<h3>Troop Difference Win Percentages</h3>
+				<table id="diffDataTable">
+					<thead>
+						<tr>
+							<th>Troop Difference (Blue - Red)</th>
+							<th>Win %</th>
+							<th>Games Played</th>
+						</tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+    <script>
+        let blueTroopsTotal = 100;
+		let redTroopsTotal = 100;
+		let numBattlefronts = 5; // Default to 5
+		let blueAllocations = [];
+		let matchHistory = JSON.parse(localStorage.getItem("blottoHistory")) || [];
+		let troopDiffChart;
+		let spreadChart;
+		let gameSubmitted = false;
+
+        function setupGame() {
+			console.log("Setting up game...");
+			// No longer pulling from sliders—using global variables directly
+			if (blueTroopsTotal < 50 || blueTroopsTotal > 200 || redTroopsTotal < 50 || redTroopsTotal > 200) {
+				alert("Troops must be between 50 and 200!");
+				blueTroopsTotal = Math.max(50, Math.min(200, blueTroopsTotal));
+				redTroopsTotal = Math.max(50, Math.min(200, redTroopsTotal));
+			}
+
+			blueAllocations = new Array(numBattlefronts).fill(0);
+			let battlefrontsDiv = document.getElementById("battlefronts");
+			battlefrontsDiv.innerHTML = "";
+			document.getElementById("result").innerHTML = "";
+			gameSubmitted = false;
+
+			for (let i = 0; i < numBattlefronts; i++) {
+				battlefrontsDiv.innerHTML += `
+					<div>
+						<div class="battlefront" id="bf${i}">
+							<div class="victory" id="victory${i}"></div>
+							<div class="troop-count" id="count${i}"></div>
+							<div class="troops red-troops" id="red${i}"></div>
+							<div class="troops blue-troops" id="blue${i}"></div>
+						</div>
+						<div class="controls-grid">
+							<button id="plus1${i}" onclick="adjustTroops(${i}, 1)">+1</button>
+							<button id="plus10${i}" onclick="adjustTroops(${i}, 10)">+10</button>
+							<button id="minus1${i}" onclick="adjustTroops(${i}, -1)">-1</button>
+							<button id="minus10${i}" onclick="adjustTroops(${i}, -10)">-10</button>
+						</div>
+					</div>
+				`;
+			}
+			console.log("Battlefronts created:", numBattlefronts);
+			document.querySelectorAll("button").forEach(btn => btn.disabled = false);
+			// Update displays with current totals
+			document.getElementById("blueTroopsDisplay").textContent = blueTroopsTotal;
+			document.getElementById("redTroopsDisplay").textContent = redTroopsTotal;
+			updateDisplay();
+			updateStats();
+		}
+
+		function setBattlefronts(num) {
+            console.log("Battlefronts HTML set:", battlefrontsDiv.innerHTML);
+            document.querySelectorAll("button").forEach(btn => btn.disabled = false);
+            updateDisplay();
+            updateStats();
+        }
+
+        function adjustTroops(index, change) {
+            let newTotal = blueAllocations.reduce((a, b) => a + b, 0) + change;
+            if (newTotal > blueTroopsTotal || (blueAllocations[index] + change) < 0) return;
+            blueAllocations[index] += change;
+            updateDisplay();
+        }
+
+        function adjustAll(change) {
+            let newTotal = blueAllocations.reduce((a, b) => a + b, 0) + change * numBattlefronts;
+            if (newTotal > blueTroopsTotal || newTotal < 0) return;
+            for (let i = 0; i < numBattlefronts; i++) {
+                if (blueAllocations[i] + change >= 0) blueAllocations[i] += change;
+            }
+            updateDisplay();
+        }
+
+        function resetAndAdjustAll(change) {
+            if (gameSubmitted) {
+                setupGame();
+                adjustAll(change);
+            } else {
+                adjustAll(change);
+            }
+        }
+
+        function evenSplit() {
+            let base = Math.floor(blueTroopsTotal / numBattlefronts);
+            let remainder = blueTroopsTotal - base * numBattlefronts;
+            blueAllocations = new Array(numBattlefronts).fill(base);
+            for (let i = 0; i < remainder; i++) blueAllocations[i]++;
+            updateDisplay();
+        }
+
+        function resetAndEvenSplit() {
+            if (gameSubmitted) {
+                setupGame();
+                evenSplit();
+            } else {
+                evenSplit();
+            }
+        }
+
+        function randomSplit() {
+			console.log("Starting randomSplit, totalTroops:", blueTroopsTotal, "numBattlefronts:", numBattlefronts);
+			let totalTroops = blueTroopsTotal;
+			let newAllocations = new Array(numBattlefronts).fill(0);
+			let remainingTroops = totalTroops;
+			
+			// Step 1: Initial random allocation
+			for (let i = 0; i < numBattlefronts - 1; i++) {
+				let maxForThis = remainingTroops - (numBattlefronts - i - 1); // Ensure at least 1 for remaining fronts
+				newAllocations[i] = Math.floor(Math.random() * (maxForThis + 1));
+				remainingTroops -= newAllocations[i];
+			}
+			newAllocations[numBattlefronts - 1] = remainingTroops;
+
+			// Step 2: Check and adjust standard deviation
+			let stdDev = standardDeviation(newAllocations);
+			console.log("Initial Allocations:", newAllocations, "Initial Std Dev:", stdDev);
+
+			let attempts = 0;
+			const maxAttempts = 50;
+			while ((stdDev < 3 || stdDev > 10) && attempts < maxAttempts) {
+				// Adjust allocations to target std dev range
+				let adjustmentFactor = stdDev < 3 ? 1.2 : 0.8; // Increase if too low, decrease if too high
+				remainingTroops = totalTroops;
+				for (let i = 0; i < numBattlefronts - 1; i++) {
+					let base = Math.floor(Math.random() * remainingTroops * adjustmentFactor);
+					newAllocations[i] = Math.min(base, remainingTroops - (numBattlefronts - i - 1));
+					remainingTroops -= newAllocations[i];
+				}
+				newAllocations[numBattlefronts - 1] = remainingTroops;
+				
+				stdDev = standardDeviation(newAllocations);
+				console.log("Attempt", attempts, "Allocations:", newAllocations, "Std Dev:", stdDev);
+				attempts++;
+			}
+
+			if (attempts >= maxAttempts) {
+				console.warn("Max attempts reached, using final allocation with std dev:", stdDev);
+			}
+
+			blueAllocations = newAllocations.slice();
+			console.log("Final Allocations:", blueAllocations, "Final Std Dev:", standardDeviation(blueAllocations));
+			updateDisplay();
+		}
+
+		function resetAndRandomSplit() {
+			console.log("Random Split button clicked, gameSubmitted:", gameSubmitted);
+			if (gameSubmitted) {
+				console.log("Game was submitted, resetting...");
+				setupGame();
+				randomSplit();
+			} else {
+				console.log("Game not submitted, proceeding with random split...");
+				randomSplit();
+			}
+		}
+
+        function resetAndRandomize(percent) {
+			if (gameSubmitted) {
+				setupGame();
+				randomize(percent);
+			} else {
+				randomize(percent);
+			}
+		}
+		
+		function randomize(percent) {
+			let totalTroops = blueTroopsTotal;
+			let mean = totalTroops / numBattlefronts;
+			let newAllocations = blueAllocations.slice();
+			let allocated = newAllocations.reduce((a, b) => a + b, 0);
+			let unallocated = totalTroops - allocated;
+
+			// If unallocated, distribute it first
+			if (unallocated > 0) {
+				evenSplit();
+				newAllocations = blueAllocations.slice();
+			}
+
+			let maxTakePercent = percent; // 5% or 20%
+			let maxAddPercent = percent * 2; // 10% or 40%
+			let adjustments = new Array(numBattlefronts).fill(0);
+
+			// Calculate adjustments
+			for (let i = 0; i < numBattlefronts; i++) {
+				let current = newAllocations[i];
+				let maxTake = Math.floor(current * maxTakePercent);
+				let maxAdd = Math.floor(mean * maxAddPercent);
+				let adjust;
+				if (current > 0) {
+					adjust = Math.floor(Math.random() * (maxTake + maxAdd + 1)) - maxTake;
+					adjust = Math.max(-maxTake, Math.min(maxAdd, adjust));
+					if (adjust === 0) adjust = Math.random() < 0.5 ? -1 : 1;
+					if (current + adjust < 0) adjust = -current;
+				} else {
+					adjust = Math.floor(Math.random() * (maxAdd + 1));
+					if (adjust === 0) adjust = 1;
+				}
+				adjustments[i] = adjust;
+			}
+
+			// Apply adjustments while respecting totalTroops
+			let tempTotal = newAllocations.reduce((a, b) => a + b, 0);
+			for (let i = 0; i < numBattlefronts; i++) {
+				let newVal = newAllocations[i] + adjustments[i];
+				if (tempTotal + adjustments[i] > totalTroops) {
+					newVal = newAllocations[i] - (tempTotal + adjustments[i] - totalTroops);
+					adjustments[i] = newVal - newAllocations[i];
+				}
+				newAllocations[i] = Math.max(0, newVal);
+				tempTotal += adjustments[i];
+			}
+
+			// Correct over-allocation
+			let finalTotal = newAllocations.reduce((a, b) => a + b, 0);
+			if (finalTotal > totalTroops) {
+				let excess = finalTotal - totalTroops;
+				for (let i = 0; i < numBattlefronts && excess > 0; i++) {
+					let reduce = Math.min(newAllocations[i], excess);
+					newAllocations[i] -= reduce;
+					excess -= reduce;
+				}
+			}
+
+			// Distribute remaining unallocated troops randomly
+			finalTotal = newAllocations.reduce((a, b) => a + b, 0);
+			let remaining = totalTroops - finalTotal;
+			while (remaining > 0) {
+				let index = Math.floor(Math.random() * numBattlefronts); // Pick a random battlefront
+				newAllocations[index] += 1; // Add one troop
+				remaining -= 1;
+			}
+
+			blueAllocations = newAllocations;
+			updateDisplay();
+		}
+		
+		function setBattlefronts(num) {
+			numBattlefronts = num;
+			document.querySelectorAll(".bf-btn").forEach(btn => btn.classList.remove("active"));
+			document.getElementById(`bf${num}`).classList.add("active");
+			setupGame();
+		}
+		
+        function updateDisplay() {
+			let totalAllocated = blueAllocations.reduce((a, b) => a + b, 0);
+			let unallocated = blueTroopsTotal - totalAllocated;
+			let stdDev = standardDeviation(blueAllocations).toFixed(2);
+			document.getElementById("unallocated").innerHTML = `Unallocated Troops: ${unallocated} | Allocation Std Dev: ${stdDev}`;
+
+			for (let i = 0; i < numBattlefronts; i++) {
+				let blueDiv = document.getElementById(`blue${i}`);
+				blueDiv.innerHTML = "";
+				let blueRows = Math.ceil(blueAllocations[i] / 16);
+				for (let j = 0; j < blueAllocations[i]; j++) {
+					let row = Math.floor(j / 16);
+					let col = j % 16;
+					let dot = document.createElement("span");
+					dot.className = "dot blue-dot";
+					dot.style.position = "absolute";
+					dot.style.left = `${4 + col * 12}px`;
+					dot.style.bottom = `${5 + row * 12}px`;
+					blueDiv.appendChild(dot);
+				}
+
+				let countDiv = document.getElementById(`count${i}`);
+				countDiv.style.bottom = `${15 + blueRows * 12}px`;
+				countDiv.innerHTML = blueAllocations[i] > 0 ? blueAllocations[i] : "";
+
+				document.getElementById(`plus1${i}`).disabled = unallocated < 1;
+				document.getElementById(`plus10${i}`).disabled = unallocated < 10;
+				document.getElementById(`minus1${i}`).disabled = blueAllocations[i] < 1;
+				document.getElementById(`minus10${i}`).disabled = blueAllocations[i] < 10;
+			}
+
+			let canAdd1 = blueTroopsTotal - totalAllocated >= numBattlefronts;
+			let canAdd10 = blueTroopsTotal - totalAllocated >= 10 * numBattlefronts;
+			let canSub1 = blueAllocations.some(x => x >= 1);
+			let canSub10 = blueAllocations.some(x => x >= 10);
+			document.getElementById("plus1All").disabled = !canAdd1;
+			document.getElementById("plus10All").disabled = !canAdd10;
+			document.getElementById("minus1All").disabled = !canSub1;
+			document.getElementById("minus10All").disabled = !canSub10;
+
+			// Disable troop buttons based on limits
+			document.querySelectorAll(".troop-btn[data-team='blue']").forEach(btn => {
+				let change = parseInt(btn.getAttribute("data-change"), 10);
+				btn.disabled = (blueTroopsTotal === 50 && change < 0) || (blueTroopsTotal === 200 && change > 0);
+			});
+			document.querySelectorAll(".troop-btn[data-team='red']").forEach(btn => {
+				let change = parseInt(btn.getAttribute("data-change"), 10);
+				btn.disabled = (redTroopsTotal === 50 && change < 0) || (redTroopsTotal === 200 && change > 0);
+			});
+
+			// Disable Submit button if there are unallocated troops
+			document.getElementById("submitBtn").disabled = unallocated > 0 || gameSubmitted;
+		}
+
+        function playGame() {
+            let totalAllocated = blueAllocations.reduce((a, b) => a + b, 0);
+            if (totalAllocated !== blueTroopsTotal) {
+                alert(`You must allocate exactly ${blueTroopsTotal} troops! (Currently: ${totalAllocated})`);
+                return;
+            }
+
+            let redAllocations = generateRedStrategy();
+            gameSubmitted = true;
+            document.querySelectorAll(".controls-grid button").forEach(btn => btn.disabled = true);
+            document.getElementById("submitBtn").disabled = true;
+
+            for (let i = 0; i < numBattlefronts; i++) {
+                let redDiv = document.getElementById(`red${i}`);
+                redDiv.innerHTML = "";
+                let redRows = Math.ceil(redAllocations[i] / 16);
+                for (let j = 0; j < redAllocations[i]; j++) {
+                    let row = Math.floor(j / 16);
+                    let col = j % 16;
+                    let dot = document.createElement("span");
+                    dot.className = "dot red-dot";
+                    dot.style.position = "absolute";
+                    dot.style.left = `${col * 12 + 10}px`;
+                    dot.style.top = `${row * 12 + 5}px`;
+                    redDiv.appendChild(dot);
+                }
+                document.getElementById(`count${i}`).innerHTML = "";
+            }
+
+            animateBattle(redAllocations);
+        }
+
+        function animateBattle(redAllocations) {
+			console.log("animateBattle started");
+			let battlefrontsResolved = 0;
+
+			for (let i = 0; i < numBattlefronts; i++) {
+				let blueDiv = document.getElementById(`blue${i}`);
+				let redDiv = document.getElementById(`red${i}`);
+				let battlefront = document.getElementById(`bf${i}`);
+
+				let blueDots = Array.from(blueDiv.children);
+				let redDots = Array.from(redDiv.children);
+				let blueTroops = blueAllocations[i];
+				let redTroops = redAllocations[i];
+
+				const centerX = 100;
+				const centerY = 150;
+				const brawlRadius = 75;
+				const danceRadius = 50;
+
+				blueDots.forEach((dot, idx) => {
+					let row = Math.floor(idx / 16);
+					let col = idx % 16;
+					dot.style.bottom = `${5 + row * 12}px`;
+					dot.style.left = `${4 + col * 12}px`;
+					dot.style.top = "";
+					dot.style.display = "inline-block";
+					dot.style.opacity = "1";
+					dot.style.visibility = "visible";
+					dot.style.position = "absolute";
+					dot.startBottom = parseFloat(dot.style.bottom);
+					dot.startLeft = parseFloat(dot.style.left);
+					dot.targetBottom = 142;
+					dot.targetLeft = centerX;
+					dot.steps = 20;
+					dot.stepCount = 0;
+					dot.inBrawl = false;
+					dot.brawlTransition = 0; // For acceleration to brawl speed
+				});
+
+				redDots.forEach((dot, idx) => {
+					let row = Math.floor(idx / 16);
+					let col = idx % 16;
+					dot.style.top = `${5 + row * 12}px`;
+					dot.style.left = `${4 + col * 12}px`;
+					dot.style.display = "inline-block";
+					dot.style.opacity = "1";
+					dot.style.visibility = "visible";
+					dot.style.position = "absolute";
+					dot.startTop = parseFloat(dot.style.top);
+					dot.startLeft = parseFloat(dot.style.left);
+					dot.targetTop = centerY;
+					dot.targetLeft = centerX;
+					dot.steps = 20;
+					dot.stepCount = 0;
+					dot.inBrawl = false;
+					dot.brawlTransition = 0; // For acceleration to brawl speed
+				});
+
+				let moveInterval = setInterval(() => {
+					let allInBrawl = true;
+
+					blueDots.forEach((dot, idx) => {
+						if (!dot.inBrawl && dot.stepCount < dot.steps) {
+							dot.stepCount++;
+							let progress = dot.stepCount / dot.steps;
+							dot.style.bottom = `${dot.startBottom + (dot.targetBottom - dot.startBottom) * progress}px`;
+							dot.style.left = `${dot.startLeft + (dot.targetLeft - dot.startLeft) * progress}px`;
+							let y = 300 - parseFloat(dot.style.bottom) - 8;
+							let dx = parseFloat(dot.style.left) - centerX;
+							let dy = y - centerY;
+							let distance = Math.sqrt(dx * dx + dy * dy);
+							if (distance <= brawlRadius) {
+								dot.inBrawl = true;
+								dot.brawlTransition = 1; // Start transition to brawl speed
+								console.log(`Blue dot ${i}-${idx} in brawl: bottom=${dot.style.bottom}, distance=${distance}`);
+							}
+							if (!dot.inBrawl) allInBrawl = false;
+						}
+					});
+
+					redDots.forEach((dot, idx) => {
+						if (!dot.inBrawl && dot.stepCount < dot.steps) {
+							dot.stepCount++;
+							let progress = dot.stepCount / dot.steps;
+							dot.style.top = `${dot.startTop + (dot.targetTop - dot.startTop) * progress}px`;
+							dot.style.left = `${dot.startLeft + (dot.targetLeft - dot.startLeft) * progress}px`;
+							let dx = parseFloat(dot.style.left) - centerX;
+							let dy = parseFloat(dot.style.top) - centerY;
+							let distance = Math.sqrt(dx * dx + dy * dy);
+							if (distance <= brawlRadius) {
+								dot.inBrawl = true;
+								dot.brawlTransition = 1; // Start transition to brawl speed
+								console.log(`Red dot ${i}-${idx} in brawl: top=${dot.style.top}, distance=${distance}`);
+							}
+							if (!dot.inBrawl) allInBrawl = false;
+						}
+					});
+
+					if (allInBrawl || blueTroops === 0 || redTroops === 0) {
+						console.log(`Battlefront ${i} all in brawl or resolved: blueDots=${blueDots.length}, redDots=${redDots.length}`);
+						clearInterval(moveInterval);
+						blueDiv.style.display = "block";
+						blueDiv.offsetHeight;
+
+						const startDance = (danceStyle) => {
+							let winners = blueTroops > redTroops ? blueDots : redDots;
+							let angleStep = 2 * Math.PI / winners.length || 1;
+
+							if (danceStyle === 1) {
+								winners.forEach((dot, idx) => {
+									dot.danceAngle = idx * angleStep;
+									dot.stepCount = 0;
+									dot.marchPhase = 0;
+									dot.prevAngle = dot.danceAngle;
+									dot.startX = parseFloat(dot.style.left);
+									dot.startY = blueTroops > redTroops ? 300 - parseFloat(dot.style.bottom) - 8 : parseFloat(dot.style.top);
+									dot.targetX = centerX + danceRadius * Math.cos(dot.danceAngle);
+									dot.targetY = centerY + danceRadius * Math.sin(dot.danceAngle);
+								});
+
+								let danceInterval = setInterval(() => {
+									winners.forEach((dot) => {
+										if (dot.marchPhase === 0) {
+											dot.stepCount++;
+											let t = dot.stepCount / 10;
+											let progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+											let x = dot.startX + (dot.targetX - dot.startX) * progress;
+											let y = dot.startY + (dot.targetY - dot.startY) * progress;
+											let posProp = blueTroops > redTroops ? "bottom" : "top";
+											let basePos = blueTroops > redTroops ? `${300 - y - 8}px` : `${y}px`;
+											dot.style.left = `${Math.max(4, Math.min(196, x))}px`;
+											dot.style[posProp] = basePos;
+											dot.style[blueTroops > redTroops ? "top" : "bottom"] = "";
+											dot.style.display = "inline-block";
+											dot.style.opacity = "1";
+											dot.style.visibility = "visible";
+											if (dot.stepCount >= 10) {
+												dot.marchPhase = 1;
+												dot.stepCount = 0;
+											}
+										} else {
+											dot.stepCount = (dot.stepCount + 1) % 16;
+											if (dot.stepCount === 0) {
+												dot.marchPhase = 1;
+												dot.prevAngle = dot.danceAngle;
+												dot.danceAngle += 0.1 * Math.PI;
+											}
+											let progress;
+											if (dot.marchPhase === 1 && dot.stepCount <= 10) {
+												let t = dot.stepCount / 10;
+												progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+											} else {
+												progress = 1;
+												if (dot.stepCount === 11) dot.marchPhase = 2;
+											}
+											let currentAngle = dot.prevAngle + (dot.danceAngle - dot.prevAngle) * progress;
+											let x = centerX + danceRadius * Math.cos(currentAngle);
+											let y = centerY + danceRadius * Math.sin(currentAngle);
+											let posProp = blueTroops > redTroops ? "bottom" : "top";
+											let basePos = blueTroops > redTroops ? `${300 - y - 8}px` : `${y}px`;
+											dot.style.left = `${Math.max(4, Math.min(196, x))}px`;
+											dot.style[posProp] = basePos;
+											dot.style[blueTroops > redTroops ? "top" : "bottom"] = "";
+											dot.style.display = "inline-block";
+											dot.style.opacity = "1";
+											dot.style.visibility = "visible";
+										}
+									});
+									battlefront.offsetHeight;
+								}, 50);
+							} else if (danceStyle === 2) {
+								const paceDistance = 20;
+								winners.forEach((dot, idx) => {
+									dot.stepCount = 0;
+									dot.marchPhase = 0;
+									dot.startX = parseFloat(dot.style.left);
+									dot.startY = blueTroops > redTroops ? 300 - parseFloat(dot.style.bottom) - 8 : parseFloat(dot.style.top);
+									dot.currentX = dot.startX;
+									dot.currentY = dot.startY;
+									dot.targetX = centerX;
+									dot.targetY = centerY;
+									dot.prevX = null;
+									dot.prevY = null;
+									dot.idx = idx;
+								});
+
+								let isHorizontal = true;
+								let generateTarget = (prevX, prevY) => {
+									isHorizontal = !isHorizontal;
+									let distance = 50 + Math.floor(Math.random() * 5) * paceDistance;
+									let direction = Math.random() < 0.5 ? 1 : -1;
+									let newX = isHorizontal ? prevX + distance * direction : prevX;
+									let newY = isHorizontal ? prevY : prevY + distance * direction;
+									newX = Math.max(4, Math.min(196, newX));
+									newY = Math.max(10, Math.min(290, newY));
+									return { x: newX, y: newY };
+								};
+
+								let leader = winners[0];
+								let target = null;
+								let danceInterval = setInterval(() => {
+									winners.forEach((dot) => {
+										if (dot.marchPhase === 0) {
+											dot.stepCount++;
+											let t = dot.stepCount / 10;
+											let progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+											dot.currentX = dot.startX + (dot.targetX - dot.startX) * progress;
+											dot.currentY = dot.startY + (dot.targetY - dot.startY) * progress;
+											if (dot.stepCount >= 10) {
+												dot.marchPhase = 1;
+												dot.stepCount = 0;
+												dot.currentX = dot.targetX;
+												dot.currentY = dot.targetY;
+												dot.targetX = centerX + dot.idx * paceDistance;
+												dot.targetY = centerY;
+											}
+										} else if (dot.marchPhase === 1) {
+											dot.stepCount++;
+											let t = dot.stepCount / 10;
+											let progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+											dot.currentX = dot.currentX + (dot.targetX - dot.currentX) * progress;
+											dot.currentY = dot.currentY + (dot.targetY - dot.currentY) * progress;
+											if (dot.stepCount >= 10) {
+												dot.marchPhase = 2;
+												dot.stepCount = 0;
+												dot.currentX = dot.targetX;
+												dot.currentY = dot.targetY;
+												if (dot === leader && !target) {
+													target = generateTarget(dot.currentX, dot.currentY);
+												}
+											}
+										} else if (dot.marchPhase === 2) {
+											dot.stepCount = (dot.stepCount + 1) % 16;
+											if (dot.stepCount === 0) {
+												dot.prevX = dot.currentX;
+												dot.prevY = dot.currentY;
+
+												if (dot === leader) {
+													let dx = target.x - dot.currentX;
+													let dy = target.y - dot.currentY;
+													if (Math.abs(dx) <= paceDistance && Math.abs(dy) <= paceDistance) {
+														target = generateTarget(dot.currentX, dot.currentY);
+														dx = target.x - dot.currentX;
+														dy = target.y - dot.currentY;
+													}
+													dot.targetX = dot.currentX + (dx !== 0 ? paceDistance * Math.sign(dx) : 0);
+													dot.targetY = dot.currentY + (dy !== 0 ? paceDistance * Math.sign(dy) : 0);
+													if (dx !== 0 && dy !== 0) dot.targetY = dot.currentY;
+												} else {
+													let ahead = winners[dot.idx - 1];
+													dot.targetX = ahead.prevX;
+													dot.targetY = ahead.prevY;
+												}
+											}
+
+											let progress;
+											if (dot.stepCount <= 10 && dot.stepCount > 0) {
+												let t = dot.stepCount / 10;
+												progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+												dot.currentX = dot.currentX + (dot.targetX - dot.currentX) * progress;
+												dot.currentY = dot.currentY + (dot.targetY - dot.currentY) * progress;
+											} else if (dot.stepCount > 10) {
+												dot.currentX = dot.targetX;
+												dot.currentY = dot.targetY;
+											}
+										}
+
+										let posProp = blueTroops > redTroops ? "bottom" : "top";
+										let basePos = blueTroops > redTroops ? `${300 - dot.currentY - 8}px` : `${dot.currentY}px`;
+										dot.style.left = `${Math.max(4, Math.min(196, dot.currentX))}px`;
+										dot.style[posProp] = basePos;
+										dot.style[blueTroops > redTroops ? "top" : "bottom"] = "";
+										dot.style.display = "inline-block";
+										dot.style.opacity = "1";
+										dot.style.visibility = "visible";
+									});
+									battlefront.offsetHeight;
+								}, 50);
+							}
+						};
+
+						let danceStyle = Math.random() < 0.5 ? 1 : 2;
+						console.log(`Battlefront ${i} dance style: ${danceStyle}`);
+
+						const finishBattle = () => {
+							let victoryDiv = document.getElementById(`victory${i}`);
+							victoryDiv.innerHTML = `<div>Red: ${redTroops} - Blue: ${blueTroops}</div>`;
+							if (blueTroops > redTroops) {
+								victoryDiv.innerHTML += "Player Victory";
+								victoryDiv.className = "victory blue-victory";
+							} else if (redTroops > blueTroops) {
+								victoryDiv.innerHTML += "Bot Victory";
+								victoryDiv.className = "victory red-victory";
+							} else {
+								victoryDiv.innerHTML += "Tie";
+								victoryDiv.className = "victory";
+							}
+							victoryDiv.style.display = "block";
+							victoryDiv.style.opacity = "1";
+							victoryDiv.style.position = "absolute";
+							victoryDiv.style.top = "10px";
+							victoryDiv.style.left = "0";
+							victoryDiv.style.width = "100%";
+							victoryDiv.style.zIndex = "20";
+							battlefront.offsetHeight;
+
+							battlefrontsResolved++;
+							console.log(`Battlefront ${i} resolved, total=${battlefrontsResolved}/${numBattlefronts}`);
+							if (battlefrontsResolved === numBattlefronts) {
+								console.log("Triggering final result");
+								let resultDiv = document.getElementById("result");
+								let blueWins = 0, redWins = 0;
+								for (let j = 0; j < numBattlefronts; j++) {
+									if (blueAllocations[j] > redAllocations[j]) blueWins++;
+									else if (redAllocations[j] > blueAllocations[j]) redWins++;
+								}
+								let winner = blueWins > redWins ? "Blue" : redWins > blueWins ? "Red" : "Tie";
+								resultDiv.innerHTML = winner === "Blue" ? "YOU WON!" : winner === "Red" ? "RED WINS..." : "TIE!";
+								resultDiv.className = winner === "Blue" ? "blue-result" : winner === "Red" ? "red-result" : "";
+								resultDiv.style.display = "block";
+								resultDiv.style.opacity = "1";
+								resultDiv.style.position = "relative";
+								document.body.offsetHeight;
+								console.log(`Final result set: ${resultDiv.innerHTML}`);
+								showFinalResult(redAllocations);
+							}
+						};
+
+						let brawlInterval = null;
+						if (blueTroops > 0 && redTroops > 0) {
+							console.log(`Battlefront ${i} starting brawl`);
+							brawlInterval = setInterval(() => {
+								blueDots.forEach((dot, idx) => {
+									if (dot.inBrawl) {
+										if (dot.brawlTransition < 10) {
+											// Sporadic movement during acceleration
+											dot.brawlTransition++;
+											let t = dot.brawlTransition / 10;
+											let progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+											let angle = Math.random() * 2 * Math.PI;
+											let distance = (Math.random() * brawlRadius) * progress; // Random within scaled radius
+											let x = centerX + distance * Math.cos(angle);
+											let y = centerY + distance * Math.sin(angle);
+											dot.style.left = `${Math.max(4, Math.min(196, x))}px`;
+											dot.style.bottom = `${300 - Math.max(10, Math.min(290, y)) - 8}px`;
+											dot.style.top = "";
+										} else {
+											// Full brawl speed
+											let angle = Math.random() * 2 * Math.PI;
+											let distance = Math.random() * brawlRadius;
+											let x = centerX + distance * Math.cos(angle);
+											let y = centerY + distance * Math.sin(angle);
+											dot.style.left = `${Math.max(4, Math.min(196, x))}px`;
+											dot.style.bottom = `${300 - Math.max(10, Math.min(290, y)) - 8}px`;
+											dot.style.top = "";
+										}
+										dot.style.display = "inline-block";
+										dot.style.opacity = "1";
+										dot.style.visibility = "visible";
+									}
+								});
+								redDots.forEach((dot, idx) => {
+									if (dot.inBrawl) {
+										if (dot.brawlTransition < 10) {
+											// Sporadic movement during acceleration
+											dot.brawlTransition++;
+											let t = dot.brawlTransition / 10;
+											let progress = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+											let angle = Math.random() * 2 * Math.PI;
+											let distance = (Math.random() * brawlRadius) * progress; // Random within scaled radius
+											let x = centerX + distance * Math.cos(angle);
+											let y = centerY + distance * Math.sin(angle);
+											dot.style.left = `${Math.max(4, Math.min(196, x))}px`;
+											dot.style.top = `${Math.max(10, Math.min(290, y))}px`;
+										} else {
+											// Full brawl speed
+											let angle = Math.random() * 2 * Math.PI;
+											let distance = Math.random() * brawlRadius;
+											let x = centerX + distance * Math.cos(angle);
+											let y = centerY + distance * Math.sin(angle);
+											dot.style.left = `${Math.max(4, Math.min(196, x))}px`;
+											dot.style.top = `${Math.max(10, Math.min(290, y))}px`;
+										}
+										dot.style.display = "inline-block";
+										dot.style.opacity = "1";
+										dot.style.visibility = "visible";
+									}
+								});
+								battlefront.offsetHeight;
+							}, 50);
+						}
+
+						if (blueTroops === 0 || redTroops === 0) {
+							startDance(danceStyle);
+							finishBattle();
+						} else {
+							let lossInterval = setInterval(() => {
+								if (blueTroops > 0 && redTroops > 0) {
+									if (blueDots.length > 0) {
+										blueTroops--;
+										let dot = blueDots.pop();
+										if (dot) dot.remove();
+									}
+									if (redDots.length > 0) {
+										redTroops--;
+										let dot = redDots.pop();
+										if (dot) dot.remove();
+									}
+								}
+
+								if (blueTroops <= 0 || redTroops <= 0) {
+									clearInterval(brawlInterval);
+									clearInterval(lossInterval);
+									startDance(danceStyle);
+									finishBattle();
+								}
+							}, 200);
+						}
+					}
+				}, 100);
+			}
+		}
+
+        function showFinalResult(redAllocations) {
+            let blueWins = 0;
+            let redWins = 0;
+            for (let i = 0; i < numBattlefronts; i++) {
+                if (blueAllocations[i] > redAllocations[i]) blueWins++;
+                else if (redAllocations[i] > blueAllocations[i]) redWins++;
+            }
+
+            let resultDiv = document.getElementById("result");
+            let winner = blueWins > redWins ? "Blue" : redWins > blueWins ? "Red" : "Tie";
+            if (winner === "Blue") {
+                resultDiv.innerHTML = "YOU WON!";
+                resultDiv.className = "blue-result";
+            } else if (winner === "Red") {
+                resultDiv.innerHTML = "RED WINS...";
+                resultDiv.className = "red-result";
+            } else {
+                resultDiv.innerHTML = "TIE!";
+                resultDiv.className = "";
+            }
+
+            matchHistory.push({
+                battlefields: numBattlefronts,
+                blueTroops: blueTroopsTotal,
+                redTroops: redTroopsTotal,
+                blueAllocations: [...blueAllocations],
+                redAllocations: [...redAllocations],
+                winner: winner
+            });
+            localStorage.setItem("blottoHistory", JSON.stringify(matchHistory));
+            updateStats();
+        }
+
+        function generateRedStrategy() {
+            let strategy = Math.floor(Math.random() * 3);
+            let troops = redTroopsTotal;
+            let allocations = new Array(numBattlefronts).fill(0);
+            let maxPerFront = Math.floor(redTroopsTotal * 0.3);
+
+            switch (strategy) {
+                case 0:
+                    let even = Math.floor(troops / numBattlefronts);
+                    for (let i = 0; i < numBattlefronts; i++) allocations[i] = even;
+                    let excess = troops - even * numBattlefronts;
+                    for (let i = 0; excess > 0 && i < numBattlefronts; i++) {
+                        let add = Math.min(maxPerFront - allocations[i], excess);
+                        allocations[i] += add;
+                        excess -= add;
+                    }
+                    randomizeAllocations(allocations, troops);
+                    break;
+                case 1:
+                    let focus = Math.floor(numBattlefronts / 2);
+                    let perFront = Math.min(maxPerFront, Math.floor(troops / focus));
+                    for (let i = 0; i < focus; i++) allocations[i] = perFront;
+                    let remaining = troops - perFront * focus;
+                    for (let i = 0; remaining > 0 && i < numBattlefronts; i++) {
+                        let add = Math.min(maxPerFront - allocations[i], remaining);
+                        allocations[i] += add;
+                        remaining -= add;
+                    }
+                    randomizeAllocations(allocations, troops);
+                    break;
+                case 2:
+                    let lowCount = 0;
+                    for (let i = 0; i < numBattlefronts - 1; i++) {
+                        let max = Math.min(maxPerFront, troops - (numBattlefronts - i - 1));
+                        allocations[i] = Math.floor(Math.random() * (max + 1));
+                        if (allocations[i] < 10 && lowCount < 2) lowCount++;
+                        else if (allocations[i] < 10) allocations[i] = 10;
+                        troops -= allocations[i];
+                    }
+                    allocations[numBattlefronts - 1] = Math.min(maxPerFront, troops);
+                    if (allocations[numBattlefronts - 1] < 10 && lowCount < 2) lowCount++;
+                    else if (allocations[numBattlefronts - 1] < 10) allocations[numBattlefronts - 1] = 10;
+                    randomizeAllocations(allocations, redTroopsTotal);
+                    break;
+            }
+            return allocations;
+        }
+
+        function randomizeAllocations(allocations, total) {
+            let base = Math.floor(total / numBattlefronts);
+            let variance = Math.floor(base * 0.05);
+            let currentTotal = allocations.reduce((a, b) => a + b, 0);
+            let maxPerFront = Math.floor(total * 0.3);
+
+            for (let i = 0; i < numBattlefronts; i++) {
+                let adjust = Math.floor(Math.random() * (2 * variance + 1)) - variance;
+                let newVal = Math.max(10, Math.min(maxPerFront, allocations[i] + adjust));
+                let diff = newVal - allocations[i];
+                if (currentTotal + diff > total) diff = total - currentTotal;
+                else if (currentTotal + diff < total && i === numBattlefronts - 1) diff = total - currentTotal;
+                allocations[i] += diff;
+                currentTotal += diff;
+            }
+            shuffle(allocations);
+            let finalTotal = allocations.reduce((a, b) => a + b, 0);
+            if (finalTotal < total) allocations[0] += total - finalTotal;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function updateStats() {
+			console.log("matchHistory length:", matchHistory.length);
+
+			if (!matchHistory.length) {
+				if (troopDiffChart) troopDiffChart.destroy();
+				troopDiffChart = new Chart(document.getElementById("troopDiffChart"), {
+					type: "line",
+					data: { labels: [0], datasets: [{ label: "Blue Win Percentage", data: [0], borderColor: "blue", fill: false, pointRadius: 0 }] },
+					options: {
+						responsive: true,
+						maintainAspectRatio: true,
+						scales: {
+							x: { title: { display: true, text: "Troop Difference (Blue - Red)", font: { size: 14 } }, grid: { display: false } },
+							y: { title: { display: true, text: "Win Percentage (%)", font: { size: 14 } }, min: 0, max: 100, grid: { color: "#e0e0e0" } }
+						},
+						plugins: { legend: { display: false }, title: { display: true, text: "Troop Difference vs Win % (No Data)", font: { size: 16 } } },
+						layout: { padding: 20 }
+					}
+				});
+				if (spreadChart) spreadChart.destroy();
+				spreadChart = new Chart(document.getElementById("spreadChart"), {
+					type: "line",
+					data: { labels: [0], datasets: [{ label: "Blue Win Percentage", data: [0], borderColor: "blue", fill: false, pointRadius: 0 }] },
+					options: {
+						responsive: true,
+						maintainAspectRatio: true,
+						scales: {
+							x: { title: { display: true, text: "Allocation Spread (Std Dev)", font: { size: 14 } }, grid: { display: false } },
+							y: { title: { display: true, text: "Win Percentage (%)", font: { size: 14 } }, min: 0, max: 100, grid: { color: "#e0e0e0" } }
+						},
+						plugins: { legend: { display: false }, title: { display: true, text: "Spread vs Win % (No Data)", font: { size: 16 } } },
+						layout: { padding: 20 }
+					}
+				});
+				return;
+			}
+
+			// Troop Difference Chart
+			let diffDataPoints = {};
+			matchHistory.forEach(match => {
+				let diff = match.blueTroops - match.redTroops;
+				if (!diffDataPoints[diff]) diffDataPoints[diff] = { wins: 0, total: 0 };
+				diffDataPoints[diff].total++;
+				if (match.winner === "Blue") diffDataPoints[diff].wins++;
+				else if (match.winner === "Tie") diffDataPoints[diff].wins += 0.5;
+			});
+
+			// Store data for popup
+			diffDataForPopup = {};
+			for (let diff in diffDataPoints) {
+				diffDataForPopup[diff] = {
+					winPercent: (diffDataPoints[diff].wins / diffDataPoints[diff].total) * 100,
+					totalGames: diffDataPoints[diff].total
+				};
+			}
+
+			let diffLabels = Object.keys(diffDataPoints).map(Number).sort((a, b) => a - b);
+			let diffWinPercents = diffLabels.map(diff => {
+				return (diffDataPoints[diff].wins / diffDataPoints[diff].total) * 100;
+			});
+
+			// Weighted smoothing based on number of games and distance
+			let diffSmoothed = [];
+			for (let i = 0; i < diffLabels.length; i++) {
+				let sum = 0;
+				let weightSum = 0;
+				for (let j = 0; j < diffLabels.length; j++) {
+					let distance = Math.abs(diffLabels[i] - diffLabels[j]);
+					let weight = diffDataPoints[diffLabels[j]].total / (1 + distance); // Weight by games, decay with distance
+					sum += diffWinPercents[j] * weight;
+					weightSum += weight;
+				}
+				diffSmoothed[i] = sum / weightSum;
+			}
+
+			console.log("Troop Diff Labels:", diffLabels);
+			console.log("Troop Diff Win Percents:", diffWinPercents);
+			console.log("Troop Diff Smoothed:", diffSmoothed);
+
+			if (troopDiffChart) troopDiffChart.destroy();
+			troopDiffChart = new Chart(document.getElementById("troopDiffChart"), {
+				type: "line",
+				data: {
+					labels: diffLabels,
+					datasets: [{
+						label: "Blue Win Percentage",
+						data: diffSmoothed,
+						borderColor: "blue",
+						fill: false,
+						tension: 0.3, // Slight curve for smoothness
+						pointRadius: 0 // No visible points
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: true,
+					scales: {
+						x: { title: { display: true, text: "Troop Difference (Blue - Red)", font: { size: 14 } }, grid: { display: false } },
+						y: { title: { display: true, text: "Win Percentage (%)", font: { size: 14 } }, min: 0, max: 100, grid: { color: "#e0e0e0" } }
+					},
+					plugins: { legend: { display: false }, title: { display: true, text: "Troop Difference vs Win %", font: { size: 16 } } },
+					layout: { padding: 20 }
+				}
+			});
+
+			// Spread Chart
+			let zeroDiffOnly = document.getElementById("zeroDiffToggle").checked;
+			let filteredHistory = zeroDiffOnly ? matchHistory.filter(match => match.blueTroops === match.redTroops) : matchHistory;
+			
+			if (!filteredHistory.length) {
+				if (spreadChart) spreadChart.destroy();
+				spreadChart = new Chart(document.getElementById("spreadChart"), {
+					type: "line",
+					data: { labels: [0], datasets: [{ label: "Blue Win Percentage", data: [0], borderColor: "blue", fill: false, pointRadius: 0 }] },
+					options: {
+						responsive: true,
+						maintainAspectRatio: true,
+						scales: {
+							x: { title: { display: true, text: "Allocation Spread (Std Dev)", font: { size: 14 } }, grid: { display: false } },
+							y: { title: { display: true, text: "Win Percentage (%)", font: { size: 14 } }, min: 0, max: 100, grid: { color: "#e0e0e0" } }
+						},
+						plugins: {
+							legend: { display: false },
+							title: { display: true, text: "Spread vs Win % (No Data)", font: { size: 16 } }
+						},
+						layout: { padding: 20 }
+					}
+				});
+				return;
+			}
+
+			let spreads = filteredHistory.map(match => standardDeviation(match.blueAllocations));
+			let minSpread = Math.floor(Math.min(...spreads));
+			let maxSpread = Math.ceil(Math.max(...spreads));
+
+			let spreadDataPoints = {};
+			filteredHistory.forEach(match => {
+				let spread = standardDeviation(match.blueAllocations);
+				let bin = Math.round(spread);
+				if (!spreadDataPoints[bin]) spreadDataPoints[bin] = { wins: 0, total: 0 };
+				spreadDataPoints[bin].total++;
+				if (match.winner === "Blue") spreadDataPoints[bin].wins++;
+				else if (match.winner === "Tie") spreadDataPoints[bin].wins += 0.5;
+			});
+
+			let spreadLabels = Object.keys(spreadDataPoints).map(Number).sort((a, b) => a - b);
+			let spreadWinPercents = spreadLabels.map(spread => {
+				return (spreadDataPoints[spread].wins / spreadDataPoints[spread].total) * 100;
+			});
+
+			// Weighted smoothing for spread chart
+			let spreadSmoothed = [];
+			for (let i = 0; i < spreadLabels.length; i++) {
+				let sum = 0;
+				let weightSum = 0;
+				for (let j = 0; j < spreadLabels.length; j++) {
+					let distance = Math.abs(spreadLabels[i] - spreadLabels[j]);
+					let weight = spreadDataPoints[spreadLabels[j]].total / (1 + distance);
+					sum += spreadWinPercents[j] * weight;
+					weightSum += weight;
+				}
+				spreadSmoothed[i] = sum / weightSum;
+			}
+
+			if (spreadChart) spreadChart.destroy();
+			spreadChart = new Chart(document.getElementById("spreadChart"), {
+				type: "line",
+				data: {
+					labels: spreadLabels,
+					datasets: [{
+						label: "Blue Win Percentage",
+						data: spreadSmoothed,
+						borderColor: "blue",
+						fill: false,
+						tension: 0.3, // Slight curve for smoothness
+						pointRadius: 0 // No visible points
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: true,
+					scales: {
+						x: {
+							title: { display: true, text: "Allocation Spread (Std Dev)", font: { size: 14 } },
+							grid: { display: false },
+							ticks: {
+								stepSize: 1,
+								callback: function(value) {
+									return Number.isInteger(value) ? value : null;
+								}
+							}
+						},
+						y: {
+							title: { display: true, text: "Win Percentage (%)", font: { size: 14 } },
+							min: 0,
+							max: 100,
+							grid: { color: "#e0e0e0" }
+						}
+					},
+					plugins: {
+						legend: { display: false },
+						title: { display: true, text: "Spread vs Win %", font: { size: 16 } }
+					},
+					layout: { padding: 20 }
+				}
+			});
+		}
+
+        function standardDeviation(array) {
+            let mean = array.reduce((a, b) => a + b, 0) / array.length;
+            let variance = array.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / array.length;
+            return Math.sqrt(variance);
+        }
+
+         // Function to populate and show the popup
+		function showDiffDataPopup() {
+			const popup = document.getElementById("diffDataPopup");
+			const tbody = document.getElementById("diffDataTable").querySelector("tbody");
+			tbody.innerHTML = ""; // Clear existing rows
+
+			if (Object.keys(diffDataForPopup).length === 0) {
+				tbody.innerHTML = "<tr><td colspan='3'>No data available</td></tr>";
+			} else {
+				for (let diff in diffDataForPopup) {
+					const row = document.createElement("tr");
+					row.innerHTML = `
+						<td>${diff}</td>
+						<td>${diffDataForPopup[diff].winPercent.toFixed(2)}%</td>
+						<td>${diffDataForPopup[diff].totalGames}</td>
+					`;
+					tbody.appendChild(row);
+				}
+			}
+
+			popup.style.display = "block";
+		}
+
+		// Function to close the popup
+		function closeDiffPopup() {
+			document.getElementById("diffDataPopup").style.display = "none";
+		}
+
+		function adjustTroops(team, change) {
+			const isBlue = team === "blue";
+			let total = isBlue ? blueTroopsTotal : redTroopsTotal;
+			let allocations = isBlue ? blueAllocations : []; // Red allocations set on submit
+			const display = document.getElementById(isBlue ? "blueTroopsDisplay" : "redTroopsDisplay");
+
+			// Calculate new total, clamp between 50 and 200
+			let newTotal = Math.max(50, Math.min(200, total + change));
+
+			// If game is submitted, reset it before adjusting
+			if (gameSubmitted) {
+				setupGame();
+				// Reapply the new total after reset
+				if (isBlue) {
+					blueTroopsTotal = newTotal;
+					blueAllocations = new Array(numBattlefronts).fill(0); // Reset allocations
+				} else {
+					redTroopsTotal = newTotal;
+				}
+			} else {
+				// Handle troop reduction logic when game is not submitted
+				if (change < 0 && isBlue) {
+					// Check unallocated troops
+					let allocated = allocations.reduce((a, b) => a + b, 0);
+					let unallocated = total - allocated;
+					let reductionNeeded = Math.abs(change);
+
+					if (reductionNeeded > unallocated) {
+						// Take from battlefields proportionally
+						let excess = reductionNeeded - unallocated;
+						let totalAllocated = allocated;
+						if (totalAllocated > 0) {
+							for (let i = 0; i < numBattlefronts && excess > 0; i++) {
+								let portion = Math.min(Math.ceil(allocations[i] * (excess / totalAllocated)), allocations[i]);
+								allocations[i] -= portion;
+								excess -= portion;
+							}
+						}
+					}
+				}
+
+				// Update global variable
+				if (isBlue) {
+					blueTroopsTotal = newTotal;
+					blueAllocations = allocations; // Update allocations if modified
+				} else {
+					redTroopsTotal = newTotal;
+				}
+			}
+
+			// Update display
+			display.textContent = newTotal;
+			updateDisplay(); // Refresh UI immediately
+		}
+
+		// Add event listeners after DOM is loaded
+		document.addEventListener("DOMContentLoaded", () => {
+			document.getElementById("showDiffDataBtn").addEventListener("click", showDiffDataPopup);
+			document.getElementById("closeDiffPopup").addEventListener("click", closeDiffPopup);
+			
+			// Add troop button listeners
+			document.querySelectorAll(".troop-btn").forEach(btn => {
+				btn.addEventListener("click", () => {
+					const team = btn.getAttribute("data-team");
+					const change = parseInt(btn.getAttribute("data-change"), 10);
+					adjustTroops(team, change);
+				});
+			});
+
+			setupGame(); // Initial setup
+		});
+    </script>
+</body>
+</html>
